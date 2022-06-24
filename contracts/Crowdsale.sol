@@ -87,17 +87,19 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             "Sale is already finished or hasn't started"
         );
         uint256 saleTokensToDex = (tokenSold * dexTokenPercent) / 100;
-        uint256 paymentTokenToDex = saleTokensToDex * price;
+        uint256 paymentTokenToDex = saleTokensToDex * price / 1e18;
         saleFinished = false;
+        saleToken.approve(address(router), saleTokensToDex);
+        paymentToken.approve(address(router), paymentTokenToDex);
         router.addLiquidity(
             address(saleToken),
             address(paymentToken),
             saleTokensToDex,
             paymentTokenToDex,
-            saleTokensToDex,
-            paymentTokenToDex,
+            0,
+            0,
             _msgSender(),
-            block.timestamp + 1800
+            block.timestamp
         ); //30 min
         emit crowdsaleFinished();
     }
