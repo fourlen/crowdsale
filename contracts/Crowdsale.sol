@@ -27,6 +27,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     uint256 public dexTokenPercent;
     uint256 public price; //wei of paymentToken for 1 sale token
     uint256 public tokenSold;
+    uint256 public tokenClaimedAmount;
     bool public saleStarted;
     bool public saleFinished;
 
@@ -129,6 +130,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         uint256 balance = userPurchasedTokens[sender];
         require(balance != 0, "Can't claim 0 tokens");
         userPurchasedTokens[sender] = 0;
+        tokenClaimedAmount += balance;
         SafeERC20.safeTransfer(saleToken, sender, balance);
         emit tokenClaimed(sender, balance);
     }
@@ -138,7 +140,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         uint256 saleTokenBalance = saleToken.balanceOf(address(this));
         uint256 paymentTokenBalance = paymentToken.balanceOf(address(this));
         address sender = _msgSender();
-        SafeERC20.safeTransfer(saleToken, sender, saleTokenBalance - tokenSold);
+        SafeERC20.safeTransfer(saleToken, sender, saleTokenBalance - (tokenSold - tokenClaimedAmount));
         SafeERC20.safeTransfer(paymentToken, sender, paymentTokenBalance);
         emit ownerClaimed(saleTokenBalance - tokenSold, paymentTokenBalance);
     }
