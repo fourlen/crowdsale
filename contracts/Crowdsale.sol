@@ -31,8 +31,8 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     bool public saleStarted;
     bool public saleFinished;
 
-    mapping(address => uint256) userPurchasedTokens;
-    mapping(IStake.Levels => uint256) levelPoolAccess; //percents (for exmaple Iron level can buy only 5% of pool)
+    mapping(address => uint256) public  userPurchasedTokens;
+    mapping(IStake.Levels => uint256) public levelPoolAccess; //percents (for exmaple Iron level can buy only 5% of pool)
 
     constructor(
         IERC20Metadata _saleToken,
@@ -119,7 +119,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             paymentToken,
             sender,
             address(this),
-            _amount * price
+            _amount * price / 1e18
         );
         emit tokenPurchased(sender, _amount);
     }
