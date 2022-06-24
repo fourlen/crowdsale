@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "../contracts/interfaces/IStake.sol";
+import "hardhat/console.sol";
 
 contract Crowdsale is Ownable, ReentrancyGuard {
     event crowdsaleStarted();
@@ -72,7 +73,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         require(!saleStarted && !saleFinished, "Sale is already active");
         require(
             saleToken.balanceOf(address(this)) >=
-                saleTokenAmount * (1 + dexTokenPercent / 100),
+                saleTokenAmount + saleTokenAmount * dexTokenPercent / 100,
             "insufficient balance of token for sale"
         );
         saleStarted = true;
