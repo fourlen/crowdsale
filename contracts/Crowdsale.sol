@@ -19,6 +19,8 @@ contract Crowdsale is Ownable, ReentrancyGuard {
 
     IUniswapV2Router02 public immutable router =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //uniswap router address
+
+    // IUniswapV2Router02 public immutable router = IUniswapV2Router02(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853); //for test
     IERC20Metadata public saleToken;
     IERC20Metadata public paymentToken;
     IStake public stake;
@@ -88,7 +90,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         );
         uint256 saleTokensToDex = (tokenSold * dexTokenPercent) / 100;
         uint256 paymentTokenToDex = saleTokensToDex * price / 1e18;
-        saleFinished = false;
+        saleFinished = true;
         saleToken.approve(address(router), saleTokensToDex);
         paymentToken.approve(address(router), paymentTokenToDex);
         router.addLiquidity(
