@@ -8,19 +8,13 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "../contracts/interfaces/IStake.sol";
-import "hardhat/console.sol";
 
 contract Crowdsale is Ownable, ReentrancyGuard {
-    event crowdsaleStarted();
-    event crowdsaleFinished();
-    event tokenPurchased(address buyer, uint256 amount);
-    event tokenClaimed(address user, uint256 amount);
-    event ownerClaimed(uint256 saleTokenAmount, uint256 paymentTokenAmount);
-
     IUniswapV2Router02 public immutable router =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //uniswap router address
 
     // IUniswapV2Router02 public immutable router = IUniswapV2Router02(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853); //for test
+
     IERC20Metadata public saleToken;
     IERC20Metadata public paymentToken;
     IStake public stake;
@@ -33,8 +27,14 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     bool public saleStarted;
     bool public saleFinished;
 
-    mapping(address => uint256) public  userPurchasedTokens;
+    mapping(address => uint256) public userPurchasedTokens;
     mapping(IStake.Levels => uint256) public levelPoolAccess; //percents (for exmaple Iron level can buy only 5% of pool)
+
+    event crowdsaleStarted();
+    event crowdsaleFinished();
+    event tokenPurchased(address buyer, uint256 amount);
+    event tokenClaimed(address user, uint256 amount);
+    event ownerClaimed(uint256 saleTokenAmount, uint256 paymentTokenAmount);
 
     constructor(
         IERC20Metadata _saleToken,
@@ -76,7 +76,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         require(!saleStarted && !saleFinished, "Sale is already active");
         require(
             saleToken.balanceOf(address(this)) >=
-                saleTokenAmount + saleTokenAmount * dexTokenPercent / 100,
+                saleTokenAmount + (saleTokenAmount * dexTokenPercent) / 100,
             "insufficient balance of token for sale"
         );
         saleStarted = true;
@@ -89,7 +89,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             "Sale is already finished or hasn't started"
         );
         uint256 saleTokensToDex = (tokenSold * dexTokenPercent) / 100;
-        uint256 paymentTokenToDex = saleTokensToDex * price / 1e18;
+        uint256 paymentTokenToDex = (saleTokensToDex * price) / 1e18;
         saleFinished = true;
         saleToken.approve(address(router), saleTokensToDex);
         paymentToken.approve(address(router), paymentTokenToDex);
@@ -123,7 +123,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             paymentToken,
             sender,
             address(this),
-            _amount * price / 1e18
+            (_amount * price) / 1e18
         );
         emit tokenPurchased(sender, _amount);
     }
@@ -144,7 +144,11 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         uint256 saleTokenBalance = saleToken.balanceOf(address(this));
         uint256 paymentTokenBalance = paymentToken.balanceOf(address(this));
         address sender = _msgSender();
-        SafeERC20.safeTransfer(saleToken, sender, saleTokenBalance - (tokenSold - tokenClaimedAmount));
+        SafeERC20.safeTransfer(
+            saleToken,
+            sender,
+            saleTokenBalance - (tokenSold - tokenClaimedAmount)
+        );
         SafeERC20.safeTransfer(paymentToken, sender, paymentTokenBalance);
         emit ownerClaimed(saleTokenBalance - tokenSold, paymentTokenBalance);
     }

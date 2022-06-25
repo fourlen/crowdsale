@@ -57,9 +57,8 @@ async function main() {
 
     console.log(`Crowdsale address: ${crowdsale.address}`);
 
-    await verifyToken(saleTokenTest, saleTokenAmount);
   try {
-    
+    await verifyToken(saleTokenTest, "contracts/test/paymentTokenTest.sol:testPayment", utils.parseEther(saleTokenAmount));
     console.log("Verify saleTokenTest succees");
   }
   catch {
@@ -67,7 +66,7 @@ async function main() {
   }
 
   try {
-    await verifyToken(paymentTokenTest.address, "contracts/test/paymentTokenTest.sol:testPayment", paymentTokenAmount);
+    await verifyToken(paymentTokenTest, "contracts/test/paymentTokenTest.sol:testPayment", utils.parseEther(paymentTokenAmount));
     console.log("Verify paymentTokenTest succees");
   }
   catch {
@@ -75,7 +74,7 @@ async function main() {
   }
 
   try {
-    await verifyToken(stakeTokenTest.address, "contracts/test/stakeTokenTest.sol:testStake", stakeTokenAmount);
+    await verifyToken(stakeTokenTest, "contracts/test/stakeTokenTest.sol:testStake", utils.parseEther(stakeTokenAmount));
     console.log("Verify stakeTokenTest succees");
   }
   catch {
@@ -84,7 +83,7 @@ async function main() {
 
   try {
     await verifyStake(stake,
-        stakeTokenTest.address, [PlatinumPercent, GoldPercent, SilverPercent, BronzePercent, IronPercent], [PlatinumThreshold, GoldThreshold, SilverThreshold, BronzeThreshold]);
+      stakeTokenTest.address, [PlatinumPercent, GoldPercent, SilverPercent, BronzePercent, IronPercent], [PlatinumThreshold, GoldThreshold, SilverThreshold, BronzeThreshold]);
     console.log("Verify stake success");
   }
   catch {
@@ -99,36 +98,12 @@ async function main() {
   catch {
     console.log("Verify crowdsale failed");
   }
-
-//   try {
-//     await verifyFactory(factory,
-//         signers[0].address);
-//     console.log("Verify factory success");
-//   }
-//   catch {
-//     console.log("Verify factory failed");
-//   }
-
-//   try {
-//     await verifyWETH(weth);
-//     console.log("Verify factory success");
-//   }
-//   catch {
-//     console.log("Verify factory failed");
-//   }
-
-//   try {
-//     await verifyRouter(factory.address, weth.address);
-//     console.log("Verify factory success");
-//   }
-//   catch {
-//     console.log("Verify factory failed");
-//   }
 }
 
-async function verifyToken(TokenTest, AMOUNT) {
+async function verifyToken(token, path, AMOUNT) {
   await hre.run("verify:verify", {
-    address: TokenTest.address,
+    address: token.address,
+    contract: path,
     constructorArguments: [
       AMOUNT
     ]
@@ -173,31 +148,6 @@ async function verifyCrowdsale(
   })
 }
 
-async function verifyFactory(factory, fee_address) {
-    await hre.run("verify:verify", {
-      address: factory.address,
-      constructorArguments: [
-        fee_address
-      ]
-    })
-}
-
-async function verifyWETH(weth) {
-  await hre.run("verify:verify", {
-    address: weth.address,
-    constructorArguments: []
-  })
-}
-
-async function verifyRouter(router, factory_address, weth_address) {
-    await hre.run("verify:verify", {
-      address: router.address,
-      constructorArguments: [
-        factory_address,
-        weth_address
-      ]
-    })
-}
 
 
 main()
