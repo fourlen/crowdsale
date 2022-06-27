@@ -22,11 +22,10 @@ const {
   SilverPercentAccess,
   BronzePercentAccess,
   IronPercentAccess,
+  RouterAddess
 } = process.env;
 
 async function main() {
-    const signers = await hre.ethers.getSigners();
-
     const SaleTokenTest = await hre.ethers.getContractFactory("testSale");
     saleTokenTest = await SaleTokenTest.deploy(utils.parseEther(saleTokenAmount));
     await saleTokenTest.deployed();
@@ -52,7 +51,7 @@ async function main() {
 
 
     const Crowdsale = await hre.ethers.getContractFactory("Crowdsale");
-    crowdsale = await Crowdsale.deploy(saleTokenTest.address, paymentTokenTest.address, stake.address, utils.parseEther(tokensToSale), percentTokensToDex, utils.parseEther(price), [PlatinumPercentAccess, GoldPercentAccess, SilverPercentAccess, BronzePercentAccess, IronPercentAccess]);
+    crowdsale = await Crowdsale.deploy(RouterAddess, saleTokenTest.address, paymentTokenTest.address, stake.address, utils.parseEther(tokensToSale), percentTokensToDex, utils.parseEther(price), [PlatinumPercentAccess, GoldPercentAccess, SilverPercentAccess, BronzePercentAccess, IronPercentAccess]);
     await crowdsale.deployed();
 
     console.log(`Crowdsale address: ${crowdsale.address}`);
@@ -92,7 +91,7 @@ async function main() {
 
   try {
     await verifyCrowdsale(crowdsale,
-        saleTokenTest.address, paymentTokenTest.address, stake.address, utils.parseEther(tokensToSale), percentTokensToDex, utils.parseEther(price), [PlatinumPercentAccess, GoldPercentAccess, SilverPercentAccess, BronzePercentAccess, IronPercentAccess]);
+        RouterAddess, saleTokenTest.address, paymentTokenTest.address, stake.address, utils.parseEther(tokensToSale), percentTokensToDex, utils.parseEther(price), [PlatinumPercentAccess, GoldPercentAccess, SilverPercentAccess, BronzePercentAccess, IronPercentAccess]);
     console.log("Verify crowdsale success");
   }
   catch {
@@ -126,6 +125,7 @@ async function verifyStake(stake,
 
 async function verifyCrowdsale(
     crowdsale,
+    routerAddess,
     saleToken,
     paymentToken,
     stake,
@@ -137,6 +137,7 @@ async function verifyCrowdsale(
   await hre.run("verify:verify", {
     address: crowdsale.address,
     constructorArguments: [
+        routerAddess,
         saleToken,
         paymentToken,
         stake,

@@ -7,24 +7,17 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "../contracts/interfaces/IStake.sol";
+import "./interfaces/IStake.sol";
 
 contract Crowdsale is Ownable, ReentrancyGuard {
-    IUniswapV2Router02 public immutable router =
-        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //uniswap router address
-
-    //сверху адрес роутера в тестовых сетях, снизу адрес для локальной сети. хз как лучше, оставить так, а потом перед деплоем в мэйннет удалить коммент
-    //или задавать адрес роутера через конструктор
-
-    // IUniswapV2Router02 public immutable router = IUniswapV2Router02(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853); //for test
-
+    IUniswapV2Router02 public immutable router;
     IERC20Metadata public immutable saleToken;
     IERC20Metadata public immutable paymentToken;
     IStake public immutable stake;
 
     uint256 public saleTokenAmount;
     uint256 public dexTokenPercent;
-    uint256 public price; //wei of paymentToken for 1 sale token
+    uint256 public price; //1/10^decimals of payment tokens
     uint256 public tokenSold;
     uint256 public tokenClaimedAmount;
     bool public saleStarted;
@@ -40,6 +33,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     event ownerClaimed(uint256 saleTokenAmount, uint256 paymentTokenAmount);
 
     constructor(
+        IUniswapV2Router02 _router,
         IERC20Metadata _saleToken,
         IERC20Metadata _paymentToken,
         IStake _stake,
@@ -53,18 +47,17 @@ contract Crowdsale is Ownable, ReentrancyGuard {
                 address(_paymentToken) != address(0),
             "Token addressess can't be 0"
         );
-        require(_saleTokenAmount != 0, "Token amount can't be 0"); //хз ставить проверку на dexTokenPerecent или нет, по идее мы же можем
-        //мы же можем захеть чтобы ни одного токена не пошло на декс или, наоборот, в 3 раза больше токенов пошло на декс
+        require(_saleTokenAmount != 0, "Token amount can't be 0");
         require(_price != 0, "Price can't be 0");
         require(address(_stake) != address(0), "Stake address can't be 0");
+        require(address(_router) != address(0), "Router address can't be 0");
         uint256 percentSum = 0;
         for (uint8 i = 0; i < 5; i++) {
             percentSum += _levelPoolPercent[i];
             levelPoolAccess[IStake.Levels(i)] = _levelPoolPercent[i];
         }
-        //хз нужно ли ставить проверку на то, что процент с повышением уровня должен повышаться, мало ли что придет в голову тому,
-        //кто будет пользоваться этим контрактом, в этом плане у него больше свободы
         require(percentSum == 100, "Sum of percents must be 100");
+        router = _router;
         saleToken = _saleToken;
         paymentToken = _paymentToken;
         saleTokenAmount = _saleTokenAmount;
@@ -92,7 +85,8 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             "Sale is already finished or hasn't started"
         );
         uint256 saleTokensToDex = (tokenSold * dexTokenPercent) / 100;
-        uint256 paymentTokenToDex = (saleTokensToDex * price) / 1e18;
+        uint256 paymentTokenToDex = (saleTokensToDex * price) /
+            (10**paymentToken.decimals());
         saleFinished = true;
         saleToken.approve(address(router), saleTokensToDex);
         paymentToken.approve(address(router), paymentTokenToDex);
@@ -126,7 +120,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             paymentToken,
             sender,
             address(this),
-            (_amount * price) / 1e18
+            (_amount * price) / (10**paymentToken.decimals())
         );
         emit tokenPurchased(sender, _amount);
     }
@@ -153,6 +147,9 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             saleTokenBalance - (tokenSold - tokenClaimedAmount)
         );
         SafeERC20.safeTransfer(paymentToken, sender, paymentTokenBalance);
-        emit ownerClaimed(saleTokenBalance - tokenSold, paymentTokenBalance);
+        emit ownerClaimed(
+            saleTokenBalance - (tokenSold - tokenClaimedAmount),
+            paymentTokenBalance
+        );
     }
 }

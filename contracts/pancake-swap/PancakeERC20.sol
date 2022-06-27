@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./interfaces/IPancakeERC20.sol";
+import "../interfaces/IPancakeERC20.sol";
 
 contract PancakeERC20 is IPancakeERC20 {
     string public constant override name = "Pancake LPs";

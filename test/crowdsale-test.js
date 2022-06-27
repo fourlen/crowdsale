@@ -38,12 +38,6 @@ describe("Deployment, transfering tokens, approvance and testing crowdsale", fun
 
     console.log(`Stake address: ${stake.address}`);
 
-    const Crowdsale = await ethers.getContractFactory("Crowdsale");
-    crowdsale = await Crowdsale.deploy(saleTokenTest.address, paymentTokenTest.address, stake.address, hund_tokens, 30, utils.parseEther("2.0"), [40, 30, 15, 10, 5]);
-    await crowdsale.deployed();
-
-    console.log(`Crowdsale address: ${crowdsale.address}`);
-
     const Factory = await ethers.getContractFactory("PancakeFactory");
     factory = await Factory.deploy(signers[0].address);
     await factory.deployed();
@@ -61,6 +55,12 @@ describe("Deployment, transfering tokens, approvance and testing crowdsale", fun
     await pancakeRouter.deployed();
 
     console.log(`router address: ${pancakeRouter.address}`);
+
+    const Crowdsale = await ethers.getContractFactory("Crowdsale");
+    crowdsale = await Crowdsale.deploy(pancakeRouter.address, saleTokenTest.address, paymentTokenTest.address, stake.address, hund_tokens, 30, utils.parseEther("2.0"), [40, 30, 15, 10, 5]);
+    await crowdsale.deployed();
+
+    console.log(`Crowdsale address: ${crowdsale.address}`);
   });
 
 

@@ -9,7 +9,6 @@ require("@nomiclabs/hardhat-etherscan")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
 require("hardhat-tracer");
-const { BigNumber } = require("ethers");
 
 const {INFURA_ID_PROJECT, ETHERSCAN_API_KEY, ACCOUNT_SECRET_KEY, REPORT_GAS} = process.env;
 const kovanURL = `https://kovan.infura.io/v3/${INFURA_ID_PROJECT}`

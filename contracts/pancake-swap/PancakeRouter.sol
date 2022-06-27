@@ -4,14 +4,17 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./interfaces/IPancakeFactory.sol";
-import "./libraries/TransferHelper.sol";
+import "../interfaces/IPancakeFactory.sol";
+import "../libraries/TransferHelper.sol";
 
-import "./libraries/PancakeLibrary.sol";
-import "./interfaces/IPancakeRouter01.sol";
-import "./interfaces/IWETH.sol";
+import "../interfaces/IPancakeRouter02.sol";
+import "../interfaces/IPancakePair.sol";
+import "../libraries/PancakeLibrary.sol";
+import "../interfaces/IWETH.sol";
 
-contract PancakeRouter01 is IPancakeRouter01 {
+import "hardhat/console.sol";
+
+contract PancakeRouter is IPancakeRouter02 {
     address public immutable override factory;
     address public immutable override WETH;
 
@@ -25,9 +28,16 @@ contract PancakeRouter01 is IPancakeRouter01 {
         WETH = _WETH;
     }
 
+    fallback() external {
+        revert("Bad function to router");
+    }
+
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
     }
+
+    event Test(string str, uint256 x);
+    event TestAddres(string str, address x);
 
     // **** ADD LIQUIDITY ****
     function _addLiquidity(
@@ -37,7 +47,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 amountBDesired,
         uint256 amountAMin,
         uint256 amountBMin
-    ) private returns (uint256 amountA, uint256 amountB) {
+    ) internal virtual returns (uint256 amountA, uint256 amountB) {
         // create the pair if it doesn't exist yet
         if (IPancakeFactory(factory).getPair(tokenA, tokenB) == address(0)) {
             IPancakeFactory(factory).createPair(tokenA, tokenB);
@@ -70,6 +80,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 deadline
     )
         external
+        virtual
         override
         ensure(deadline)
         returns (
@@ -102,6 +113,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
     )
         external
         payable
+        virtual
         override
         ensure(deadline)
         returns (
@@ -123,8 +135,9 @@ contract PancakeRouter01 is IPancakeRouter01 {
         IWETH(WETH).deposit{value: amountETH}();
         assert(IWETH(WETH).transfer(pair, amountETH));
         liquidity = IPancakePair(pair).mint(to);
+        // refund dust eth, if any
         if (msg.value > amountETH)
-            TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH); // refund dust eth, if any
+            TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -136,7 +149,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 amountBMin,
         address to,
         uint256 deadline
-    ) public override ensure(deadline) returns (uint256 amountA, uint256 amountB) {
+    ) public virtual override ensure(deadline) returns (uint256 amountA, uint256 amountB) {
         address pair = PancakeLibrary.pairFor(factory, tokenA, tokenB);
         IPancakePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
         (uint256 amount0, uint256 amount1) = IPancakePair(pair).burn(to);
@@ -153,7 +166,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 amountETHMin,
         address to,
         uint256 deadline
-    ) public override ensure(deadline) returns (uint256 amountToken, uint256 amountETH) {
+    ) public virtual override ensure(deadline) returns (uint256 amountToken, uint256 amountETH) {
         (amountToken, amountETH) = removeLiquidity(
             token,
             WETH,
@@ -180,7 +193,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override returns (uint256 amountA, uint256 amountB) {
+    ) external virtual override returns (uint256 amountA, uint256 amountB) {
         address pair = PancakeLibrary.pairFor(factory, tokenA, tokenB);
         uint256 value = approveMax ? type(uint256).max : liquidity;
         IPancakePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
@@ -206,11 +219,59 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override returns (uint256 amountToken, uint256 amountETH) {
+    ) external virtual override returns (uint256 amountToken, uint256 amountETH) {
         address pair = PancakeLibrary.pairFor(factory, token, WETH);
         uint256 value = approveMax ? type(uint256).max : liquidity;
         IPancakePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
         (amountToken, amountETH) = removeLiquidityETH(
+            token,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            to,
+            deadline
+        );
+    }
+
+    // **** REMOVE LIQUIDITY (supporting fee-on-transfer tokens) ****
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline
+    ) public virtual override ensure(deadline) returns (uint256 amountETH) {
+        (, amountETH) = removeLiquidity(
+            token,
+            WETH,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            address(this),
+            deadline
+        );
+        TransferHelper.safeTransfer(token, to, IERC20(token).balanceOf(address(this)));
+        IWETH(WETH).withdraw(amountETH);
+        TransferHelper.safeTransferETH(to, amountETH);
+    }
+
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline,
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual override returns (uint256 amountETH) {
+        address pair = PancakeLibrary.pairFor(factory, token, WETH);
+        uint256 value = approveMax ? type(uint256).max : liquidity;
+        IPancakePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        amountETH = removeLiquidityETHSupportingFeeOnTransferTokens(
             token,
             liquidity,
             amountTokenMin,
@@ -226,7 +287,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256[] memory amounts,
         address[] memory path,
         address _to
-    ) private {
+    ) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = PancakeLibrary.sortTokens(input, output);
@@ -250,7 +311,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         amounts = PancakeLibrary.getAmountsOut(factory, amountIn, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
@@ -271,7 +332,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         amounts = PancakeLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "PancakeRouter: EXCESSIVE_INPUT_AMOUNT");
         TransferHelper.safeTransferFrom(
@@ -288,7 +349,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external payable override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external payable virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[0] == WETH, "PancakeRouter: INVALID_PATH");
         amounts = PancakeLibrary.getAmountsOut(factory, msg.value, path);
         require(
@@ -306,7 +367,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[path.length - 1] == WETH, "PancakeRouter: INVALID_PATH");
         amounts = PancakeLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, "PancakeRouter: EXCESSIVE_INPUT_AMOUNT");
@@ -327,7 +388,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[path.length - 1] == WETH, "PancakeRouter: INVALID_PATH");
         amounts = PancakeLibrary.getAmountsOut(factory, amountIn, path);
         require(
@@ -350,22 +411,116 @@ contract PancakeRouter01 is IPancakeRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external payable override ensure(deadline) returns (uint256[] memory amounts) {
+    ) external payable virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[0] == WETH, "PancakeRouter: INVALID_PATH");
         amounts = PancakeLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= msg.value, "PancakeRouter: EXCESSIVE_INPUT_AMOUNT");
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(PancakeLibrary.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
+        // refund dust eth, if any
         if (msg.value > amounts[0])
-            TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]); // refund dust eth, if any
+            TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
     }
 
+    // **** SWAP (supporting fee-on-transfer tokens) ****
+    // requires the initial amount to have already been sent to the first pair
+    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to)
+        internal
+        virtual
+    {
+        for (uint256 i; i < path.length - 1; i++) {
+            (address input, address output) = (path[i], path[i + 1]);
+            (address token0, ) = PancakeLibrary.sortTokens(input, output);
+            IPancakePair pair = IPancakePair(PancakeLibrary.pairFor(factory, input, output));
+            uint256 amountInput;
+            uint256 amountOutput;
+            {
+                // scope to avoid stack too deep errors
+                (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
+                (uint256 reserveInput, uint256 reserveOutput) =
+                    input == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+                amountInput = IERC20(input).balanceOf(address(pair)) - reserveInput;
+                amountOutput = PancakeLibrary.getAmountOut(
+                    amountInput,
+                    reserveInput,
+                    reserveOutput
+                );
+            }
+            (uint256 amount0Out, uint256 amount1Out) =
+                input == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
+            address to =
+                i < path.length - 2 ? PancakeLibrary.pairFor(factory, output, path[i + 2]) : _to;
+            pair.swap(amount0Out, amount1Out, to, new bytes(0));
+        }
+    }
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external virtual override ensure(deadline) {
+        TransferHelper.safeTransferFrom(
+            path[0],
+            msg.sender,
+            PancakeLibrary.pairFor(factory, path[0], path[1]),
+            amountIn
+        );
+        uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
+            "PancakeRouter: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
+    }
+
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable virtual override ensure(deadline) {
+        require(path[0] == WETH, "PancakeRouter: INVALID_PATH");
+        uint256 amountIn = msg.value;
+        IWETH(WETH).deposit{value: amountIn}();
+        assert(IWETH(WETH).transfer(PancakeLibrary.pairFor(factory, path[0], path[1]), amountIn));
+        uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+            IERC20(path[path.length - 1]).balanceOf(to) - balanceBefore >= amountOutMin,
+            "PancakeRouter: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
+    }
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external virtual override ensure(deadline) {
+        require(path[path.length - 1] == WETH, "PancakeRouter: INVALID_PATH");
+        TransferHelper.safeTransferFrom(
+            path[0],
+            msg.sender,
+            PancakeLibrary.pairFor(factory, path[0], path[1]),
+            amountIn
+        );
+        _swapSupportingFeeOnTransferTokens(path, address(this));
+        uint256 amountOut = IERC20(WETH).balanceOf(address(this));
+        require(amountOut >= amountOutMin, "PancakeRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        IWETH(WETH).withdraw(amountOut);
+        TransferHelper.safeTransferETH(to, amountOut);
+    }
+
+    // **** LIBRARY FUNCTIONS ****
     function quote(
         uint256 amountA,
         uint256 reserveA,
         uint256 reserveB
-    ) public pure override returns (uint256 amountB) {
+    ) public pure virtual override returns (uint256 amountB) {
         return PancakeLibrary.quote(amountA, reserveA, reserveB);
     }
 
@@ -373,7 +528,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
-    ) public pure override returns (uint256 amountOut) {
+    ) public pure virtual override returns (uint256 amountOut) {
         return PancakeLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
@@ -381,13 +536,14 @@ contract PancakeRouter01 is IPancakeRouter01 {
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
-    ) public pure override returns (uint256 amountIn) {
-        return PancakeLibrary.getAmountOut(amountOut, reserveIn, reserveOut);
+    ) public pure virtual override returns (uint256 amountIn) {
+        return PancakeLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
     }
 
     function getAmountsOut(uint256 amountIn, address[] memory path)
         public
         view
+        virtual
         override
         returns (uint256[] memory amounts)
     {
@@ -397,6 +553,7 @@ contract PancakeRouter01 is IPancakeRouter01 {
     function getAmountsIn(uint256 amountOut, address[] memory path)
         public
         view
+        virtual
         override
         returns (uint256[] memory amounts)
     {

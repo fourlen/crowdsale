@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./interfaces/IPancakePair.sol";
+import "../interfaces/IPancakePair.sol";
 import "./PancakeERC20.sol";
-import "./libraries/Math.sol";
-import "./libraries/UQ112x112.sol";
-import "./interfaces/IPancakeFactory.sol";
-import "./interfaces/IPancakeCallee.sol";
+import "../libraries/Math.sol";
+import "../libraries/UQ112x112.sol";
+import "../interfaces/IPancakeFactory.sol";
+import "../interfaces/IPancakeCallee.sol";
 
 contract PancakePair is IPancakePair, PancakeERC20 {
     using UQ112x112 for uint224;

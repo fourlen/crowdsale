@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../contracts/interfaces/IStake.sol";
+import "./interfaces/IStake.sol";
 
 contract Stake is IStake, Ownable, ReentrancyGuard {
     IERC20Metadata public immutable stakedToken;
