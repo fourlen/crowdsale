@@ -86,7 +86,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
         );
         uint256 saleTokensToDex = (tokenSold * dexTokenPercent) / 100;
         uint256 paymentTokenToDex = (saleTokensToDex * price) /
-            (10**paymentToken.decimals());
+            (10 ** saleToken.decimals());
         saleFinished = true;
         saleToken.approve(address(router), saleTokensToDex);
         paymentToken.approve(address(router), paymentTokenToDex);
@@ -99,7 +99,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             0,
             _msgSender(),
             block.timestamp
-        ); //30 min
+        );
         emit crowdsaleFinished();
     }
 
@@ -120,7 +120,7 @@ contract Crowdsale is Ownable, ReentrancyGuard {
             paymentToken,
             sender,
             address(this),
-            (_amount * price) / (10**paymentToken.decimals())
+            (_amount * price) / (10 ** saleToken.decimals())
         );
         emit tokenPurchased(sender, _amount);
     }
