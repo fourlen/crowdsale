@@ -13,11 +13,14 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     IUniswapV2Router02 public immutable router =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //uniswap router address
 
+    //сверху адрес роутера в тестовых сетях, снизу адрес для локальной сети. хз как лучше, оставить так, а потом перед деплоем в мэйннет удалить коммент
+    //или задавать адрес роутера через конструктор
+
     // IUniswapV2Router02 public immutable router = IUniswapV2Router02(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853); //for test
 
-    IERC20Metadata public saleToken;
-    IERC20Metadata public paymentToken;
-    IStake public stake;
+    IERC20Metadata public immutable saleToken;
+    IERC20Metadata public immutable paymentToken;
+    IStake public immutable stake;
 
     uint256 public saleTokenAmount;
     uint256 public dexTokenPercent;
