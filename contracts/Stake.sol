@@ -9,29 +9,12 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../contracts/interfaces/IStake.sol";
 
 contract Stake is IStake, Ownable, ReentrancyGuard {
-    IERC20Metadata public stakedToken;
+    IERC20Metadata public immutable stakedToken;
 
     mapping(address => Staker) public stakers;
 
     mapping(Levels => LevelInfo) public levelInfos;
 
-    // enum Levels {
-    //     Platinum,
-    //     Gold,
-    //     Silver,
-    //     Bronze,
-    //     Iron
-    // }
-
-    // struct Staker {
-    //     uint256 amount;
-    //     uint256 lastCollectTimestamp;
-    // }
-
-    // struct LevelInfo {
-    //     uint256 levelReward;
-    //     uint256 threshold;
-    // }
 
     event Deposit(address indexed staker, uint256 amount);
     event RewardCollected(address indexed staker, uint256 reward);
